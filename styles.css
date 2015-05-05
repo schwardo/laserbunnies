@@ -1,0 +1,38 @@
+svg {
+  width: 100%;
+  height: 900px;
+  background-color: #fff;
+  
+  -ms-touch-action: none;
+      touch-action: none;
+}
+.tile {
+  fill: #aaa;
+  stroke: #000;
+}
+.homebase {
+  fill-opacity: 0;
+  stroke: #000;
+}
+.screen {
+  fill: #fff;
+  stroke: #000;
+}
+.meeple {
+  stroke: #000;
+}
+.meeple.red {
+  fill: #f88;
+}
+.meeple.green {
+  fill: #8f8;
+}
+.meeple.blue {
+  fill: #88f;
+}
+.meeple.pink {
+  fill: #f8f;
+}
+.meeple.yellow {
+  fill: #ff8;
+}
