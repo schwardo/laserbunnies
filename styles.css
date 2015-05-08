@@ -36,3 +36,6 @@ svg {
 .meeple.yellow {
   fill: #ff8;
 }
+body {
+  margin: 0px;
+}

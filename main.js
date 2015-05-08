@@ -6,13 +6,13 @@ var meeples = [];
 var COLORS = ['red', 'green', 'blue', 'pink', 'yellow'];
   
 function Pile(x, y, w, h) {
-  this.x = x + (w / 2);
-  this.y = y + (h / 2);
+  this.x = x + (w / 4);
+  this.y = y + (h / 4);
   this.count = 0;
 }
 Pile.prototype.nextForColor = function(color) {
-  return {x: this.x + this.count * 10,
-          y: this.y + this.count * 10};
+  return {x: this.x + this.count * 15,
+          y: this.y + this.count * 15};
 };
 Pile.prototype.add = function(color) {
   this.count++;
@@ -65,7 +65,7 @@ Rectangle.prototype.draw = function () {
   this.el.setAttribute('canvas-y', this.y);
 };
 
-  interact('.meeple')
+  interact('.draggable-meeple')
     .draggable({
         onmove: function (event) {
             var target = event.target,
@@ -83,14 +83,17 @@ Rectangle.prototype.draw = function () {
            var rect = svgCanvas.getBoundingClientRect();
            event.target.setAttribute('canvas-x', event.clientX - rect.left);
            event.target.setAttribute('canvas-y', event.clientY - rect.top);
+        },
+    restrict: {
+        restriction: {
+          x: 0,
+          y: 350,
+          width: 1250,
+          height: 325
         }
+    }
     })
     .inertia(true)
-    .restrict({
-        drag: "parent",
-        endOnly: true,
-        elementRect: { top: 0, left: 0, bottom: 1, right: 1 }
-    })
   .snap({
       mode: 'anchor',
       anchors: [],
@@ -151,11 +154,57 @@ interact('.dropzone').dropzone({
 
 interact.maxInteractions(Infinity);
 
-var pile = new MultiPile(0, 200, 1250, 300);
-for (var i = 0; i < 20; i++) {
-  var color = COLORS[i % COLORS.length];
-  
-  var coords = pile.nextForColor(color);
-  var meeple = new Rectangle(coords.x, coords.y, 60, 60, svgCanvas, 'meeple ' + color);
-  pile.add(color);
+var opponentStash = new MultiPile(0, 0, 1250, 75);
+var playerStash = new MultiPile(0, 600, 1250, 75);
+
+var opponentTile1Pile = new Pile(0, 200, 250, 100);
+var opponentTile2Pile = new Pile(250, 200, 250, 100);
+
+var playerTile1Pile = new Pile(0, 400, 250, 100);
+var playerTile2Pile = new Pile(250, 400, 250, 100);
+
+for (var i = 0; i < 5; i++) {
+  new Rectangle(250 * i, 125, 250, 225, svgCanvas, 'tile');
+  new Rectangle(250 * i, 375, 250, 225, svgCanvas, 'tile');
 }
+new Rectangle(0, 325, 1250, 25, svgCanvas, 'screen');
+new Rectangle(0, 350, 1250, 25, svgCanvas, 'screen');
+
+function addMeeples(color, n, pile, draggable) {
+  for (var i = 0; i < n; i++) {
+    var cssClass = 'meeple ' + color;
+    if (draggable) {
+      cssClass += ' draggable-meeple';
+    }
+    var coords = pile.nextForColor(color);
+    var meeple = new Rectangle(coords.x, coords.y, 50, 50, svgCanvas, cssClass);
+    pile.add(color);
+  }
+}
+
+function addMeeple(color, pile, draggable) {
+  addMeeples(color, 1, pile, draggable);
+}
+
+addMeeples('red', 4, opponentStash, false);
+addMeeples('red', 4, playerStash, true);
+
+addMeeples('green', 4, opponentStash, false);
+addMeeples('green', 4, playerStash, true);
+
+addMeeples('blue', 4, opponentStash, false);
+addMeeples('blue', 4, playerStash, true);
+
+addMeeples('yellow', 4, opponentStash, false);
+addMeeples('yellow', 4, playerStash, true);
+
+addMeeples('pink', 4, opponentStash, false);
+addMeeples('pink', 4, playerStash, true);
+
+addMeeples('red', 1, opponentTile1Pile, false);
+addMeeples('blue', 1, opponentTile1Pile, false);
+
+addMeeples('blue', 1, playerTile1Pile, true);
+addMeeples('green', 1, playerTile1Pile, true);
+
+addMeeples('green', 2, playerTile2Pile, true);
