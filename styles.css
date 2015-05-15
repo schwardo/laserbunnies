@@ -9,6 +9,7 @@ svg {
 .tile {
   fill: #aaa;
   stroke: #000;
+  z-index: 0;
 }
 .homebase {
   fill-opacity: 0;
@@ -20,6 +21,7 @@ svg {
 }
 .meeple {
   stroke: #000;
+  z-index: 100;
 }
 .meeple.red {
   fill: #f88;
