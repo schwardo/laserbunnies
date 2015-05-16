@@ -232,58 +232,6 @@ function moveToPile(meeple, pile) {
       elementOrigin: { x: 0.5, y: 0.5 },
       endOnly: true});
 
-// enable draggables to be dropped into this
-/*
-interact('.dropzone').dropzone({
-    // only accept elements matching this CSS selector
-    accept: '.meeple',
-    // Require a 75% element overlap for a drop to be possible
-    overlap: 0.75,
-
-    // listen for drop related events:
-
-    ondropactivate: function (event) {
-        // add active dropzone feedback
-        event.target.classList.add('drop-active');
-
-    },
-    ondragenter: function (event) {
-        var draggableElement = event.relatedTarget,
-            dropzoneElement = event.target;
-
-        // feedback the possibility of a drop
-        dropzoneElement.classList.add('drop-target');
-        draggableElement.classList.add('can-drop');
-        var dropRect = interact.getElementRect(event.target),
-            dropCenter = {
-              x: dropRect.left + dropRect.width  / 2,
-              y: dropRect.top  + dropRect.height / 2
-            };
-
-        event.draggable.snap({
-          anchors: [ dropCenter ]
-        });
-
-    },
-    ondragleave: function (event) {
-        var draggableElement = event.relatedTarget,
-            dropzoneElement = event.target;
-        // remove the drop feedback style
-        event.target.classList.remove('drop-target');
-        event.relatedTarget.classList.remove('can-drop');
-        event.draggable.snap(false);
-    },
-    ondrop: function (event) {
-        //Dropped event
-    },
-    ondropdeactivate: function (event) {
-        // remove active dropzone feedback
-        event.target.classList.remove('drop-active');
-        event.target.classList.remove('drop-target');
-    }
-});
-*/
-
 interact.maxInteractions(Infinity);
 
 var opponentStash = new MultiPile('O', 0, 0, 1250, 75);
