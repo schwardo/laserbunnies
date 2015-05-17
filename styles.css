@@ -18,6 +18,7 @@ svg {
 .screen {
   fill: #fff;
   stroke: #000;
+  z-index: 5;
 }
 .meeple {
   stroke: #000;
@@ -40,4 +41,11 @@ svg {
 }
 body {
   margin: 0px;
+}
+.label {
+//  font-size: 30;
+  text-anchor: middle;
+  stroke: black;
+  z-index: 500;
+  dominant-baseline: central;
 }

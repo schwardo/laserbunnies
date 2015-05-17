@@ -22,14 +22,24 @@ function Prompt(fromOptions, toOptions, minCount, maxCount) {
   
 function Pile(id, x, y, w, h) {
   this.id = id;
-  this.x = x + (w / 4);
-  this.y = y + (h / 4);
+  this.x = x;
+  this.y = y;
+  this.w = w;
+  this.h = h;
   this.count = 0;
   this.meeples = {};
 }
 Pile.prototype.next = function(color) {
-  return {x: this.x + this.count * 15,
-          y: this.y + this.count * 15};
+  var cnt = this.count;
+  var xstart = this.x + (this.w / 5);
+  var dx = 15;
+  if (cnt >= 4) {
+    cnt -= 4;
+    xstart = (this.x + (this.w * 3 / 5));
+    dx = -15;
+  }
+  return {x: xstart + (cnt * dx),
+          y: (this.y + (this.h / 4) + (cnt * 15))};
 };
 Pile.prototype.add = function(meeple) {
   this.count++;
@@ -88,10 +98,20 @@ function Rectangle (x, y, w, h, svgCanvas, cls) {
   this.baseClass = cls;
   this.el.setAttribute('class', cls);
   rectangles.push(this);
+  
+  this.text = document.createElementNS(svgNS, 'text');
+  this.text.setAttributeNS(null, 'x', x + (w / 2));
+  this.text.setAttributeNS(null, 'y', y + (h / 2));
+  this.text.setAttributeNS(null, 'class', 'label');
 
   this.draw();
   svgCanvas.appendChild(this.el);
+  svgCanvas.appendChild(this.text);
 }
+
+Rectangle.prototype.setText = function(msg) {
+  this.text.textContent = msg;
+};
 
 Rectangle.prototype.draw = function () {
   this.el.setAttribute('x', this.x + this.stroke / 2);
@@ -167,13 +187,18 @@ interact(tile.el).dropzone({
 });
 }
 
-function triggerMove(target, dx, dy) {
+function triggerMove(target, dx, dy, animate) {
   var x = (parseFloat(target.getAttribute('data-x')) || 0) + dx;
   var y = (parseFloat(target.getAttribute('data-y')) || 0) + dy;
 
   target.style.webkitTransform =
   target.style.transform =
       'translate(' + x + 'px, ' + y + 'px)';
+  if (animate) {
+    target.style.transition = '1s ease-in-out';
+  } else {
+    target.style.transition = null;
+  }
 
   target.setAttribute('data-x', x);
   target.setAttribute('data-y', y);
@@ -195,42 +220,41 @@ function moveToPile(meeple, pile) {
   var dx = coords.x - bb.left + canvasBb.left;
   var dy = coords.y - bb.top + canvasBb.top;
   
-  triggerMove(meeple.el, dx, dy);
+  triggerMove(meeple.el, dx, dy, true);
   meeple.el.setAttribute('canvas-x', coords.x);
   meeple.el.setAttribute('canvas-y', coords.y);
 
   meeple.el.pile = pile;
 };
 
-  interact('.draggable-meeple')
-    .draggable({
-        onmove: function (event) {
-            var target = event.target;
-            triggerMove(target, event.dx, event.dy);
-        },
-        onend: function (event) {
-           var rect = svgCanvas.getBoundingClientRect();
-           event.target.setAttribute('canvas-x', event.clientX - rect.left);
-           event.target.setAttribute('canvas-y', event.clientY - rect.top);
-        },
-        restrict: {
-          restriction: {
-            x: 0,
-            y: 375,
-            width: 1250,
-            height: 300,
-            elementRect: { left: 1, right: 1, top: 1, bottom: 1 }
-          }
+interact('.draggable-meeple')
+  .draggable({
+      onmove: function (event) {
+          var target = event.target;
+          triggerMove(target, event.dx, event.dy, false);
+      },
+      onend: function (event) {
+         var rect = svgCanvas.getBoundingClientRect();
+         event.target.setAttribute('canvas-x', event.clientX - rect.left);
+         event.target.setAttribute('canvas-y', event.clientY - rect.top);
+      },
+      restrict: {
+        restriction: {
+          x: 0,
+          y: 375,
+          width: 1250,
+          height: 300,
+          elementRect: { left: 1, right: 1, top: 1, bottom: 1 }
         }
-    })
-    .inertia(true)
-//    .dynamicDrop(true)
-    .snap({
-      mode: 'anchor',
-      anchors: [],
-      range: Infinity,
-      elementOrigin: { x: 0.5, y: 0.5 },
-      endOnly: true});
+      }
+  })
+  .inertia(true)
+  .snap({
+    mode: 'anchor',
+    anchors: [],
+    range: Infinity,
+    elementOrigin: { x: 0.5, y: 0.5 },
+    endOnly: true});
 
 interact.maxInteractions(Infinity);
 
@@ -251,11 +275,12 @@ for (var i = 0; i < 5; i++) {
   var tile = new Rectangle(250 * i, 375, 250, 225, svgCanvas, 'tile');
   connectTileToPile(tile, playerPile);
 }
-new Rectangle(0, 325, 1250, 25, svgCanvas, 'screen');
-new Rectangle(0, 350, 1250, 25, svgCanvas, 'screen endbutton');
+
+var button = new Rectangle(0, 325, 1250, 50, svgCanvas, 'screen endbutton');
 
 interact('.endbutton').on('tap', function (event) {
   var i = 0;
+  button.setText("Calculating winner...");
   meeples.forEach(function(meeple) {
     if (meeple.el.pile != null &&
         playerPiles.indexOf(meeple.el.pile) >= 0) {
@@ -289,6 +314,7 @@ function normalizeMeeples() {
     setMeepleDraggability(meeples[i], false);
   }
   setPileDraggability(playerStash, true);
+  button.setText("Move up to 5 meeples to the tiles below. Tap here when done.");
 }
 
 function addMeeples(color, n, pile) {
