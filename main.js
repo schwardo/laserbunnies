@@ -2,24 +2,89 @@ var svgCanvas = document.querySelector('svg'),
     svgNS = 'http://www.w3.org/2000/svg',
     rectangles = [];
 var meeples = [];
+
+var COLORS = ['red', 'green', 'blue', 'pink', 'yellow'];
+
+function Move(from, to, color) {
+  this.highlightTile = null;
+  this.from = from;
+  this.to = to;
+  this.color = color;
+};
+
+function Prompt(fromOptions, toOptions, minCount, maxCount) {
+  this.highlightTile = null;
+  this.fromOptions = fromOptions;
+  this.toOptions = toOptions;
+  this.minCount = minCount;
+  this.maxCount = maxCount;
+};
   
-function Pile(x, y, svgCanvas, cls) {
+function Pile(id, x, y, w, h) {
+  this.id = id;
   this.x = x;
   this.y = y;
+  this.w = w;
+  this.h = h;
   this.count = 0;
+  this.meeples = {};
 }
-
-Pile.prototype.nextPosition = function() {
-  return {x: this.x + this.count * 10,
-          y: this.y + this.count * 10};
+Pile.prototype.next = function(color) {
+  var cnt = this.count;
+  var xstart = this.x + (this.w / 5);
+  var dx = 15;
+  if (cnt >= 4) {
+    cnt -= 4;
+    xstart = (this.x + (this.w * 3 / 5));
+    dx = -15;
+  }
+  return {x: xstart + (cnt * dx),
+          y: (this.y + (this.h / 4) + (cnt * 15))};
 };
-Pile.prototype.add = function() {
+Pile.prototype.add = function(meeple) {
   this.count++;
+  this.meeples[meeple.id] = meeple;
 };
-Pile.prototype.remove = function() {
+Pile.prototype.remove = function(meeple) {
   this.count--;
+  delete this.meeples[meeple.id];
+};
+Pile.prototype.getMeeples = function() {
+  var out = [];
+  for (var k in this.meeples) {
+    out.push(this.meeples[k]);
+  }
+  return out;
 };
 
+function MultiPile(id, x, y, w, h) {
+  this.id = id;
+  this.colors = {};
+  for (var i = 0; i < COLORS.length; i++) {
+    this.colors[COLORS[i]] = new Pile(id + '-' + COLORS[i], x + (i * w / 5), y, w / 5, h);
+  }
+}
+MultiPile.prototype.next = function(color) {
+  return this.colors[color].next(color);
+};
+MultiPile.prototype.add = function(meeple) {
+  this.colors[meeple.color].add(meeple);
+};
+MultiPile.prototype.remove = function(meeple) {
+  this.colors[meeple.color].remove(meeple);
+};
+MultiPile.prototype.getMeeples = function() {
+  var out = [];
+  for (var color in this.colors) {
+    var meeples = this.colors[color].getMeeples();
+    for (var m in meeples) {
+      out.push(meeples[m]);
+    }
+  }
+  return out;
+};
+
+var rectanglesSoFar = 0;
 function Rectangle (x, y, w, h, svgCanvas, cls) {
   this.x = x;
   this.y = y;
@@ -27,14 +92,26 @@ function Rectangle (x, y, w, h, svgCanvas, cls) {
   this.h = h;
   this.stroke = 5;
   this.el = document.createElementNS(svgNS, 'rect');
+  this.id = rectanglesSoFar++;
   
   this.el.setAttribute('data-index', rectangles.length);
+  this.baseClass = cls;
   this.el.setAttribute('class', cls);
   rectangles.push(this);
+  
+  this.text = document.createElementNS(svgNS, 'text');
+  this.text.setAttributeNS(null, 'x', x + (w / 2));
+  this.text.setAttributeNS(null, 'y', y + (h / 2));
+  this.text.setAttributeNS(null, 'class', 'label');
 
   this.draw();
   svgCanvas.appendChild(this.el);
+  svgCanvas.appendChild(this.text);
 }
+
+Rectangle.prototype.setText = function(msg) {
+  this.text.textContent = msg;
+};
 
 Rectangle.prototype.draw = function () {
   this.el.setAttribute('x', this.x + this.stroke / 2);
@@ -48,88 +125,8 @@ Rectangle.prototype.draw = function () {
   this.el.setAttribute('canvas-y', this.y);
 };
 
-  interact('.meeple')
-    .draggable({
-        onmove: function (event) {
-            var target = event.target,
-                x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx,
-                y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-
-            target.style.webkitTransform =
-            target.style.transform =
-                'translate(' + x + 'px, ' + y + 'px)';
-
-            target.setAttribute('data-x', x);
-            target.setAttribute('data-y', y);
-        },
-        onend: function (event) {
-           var rect = svgCanvas.getBoundingClientRect();
-           event.target.setAttribute('canvas-x', event.clientX - rect.left);
-           event.target.setAttribute('canvas-y', event.clientY - rect.top);
-        }
-    })
-    .inertia(true)
-    .restrict({
-        drag: "parent",
-        endOnly: true,
-        elementRect: { top: 0, left: 0, bottom: 1, right: 1 }
-    })
-  .snap({
-      mode: 'anchor',
-      anchors: [],
-      range: Infinity,
-      elementOrigin: { x: 0.5, y: 0.5 },
-      endOnly: true
-});
-
-interact('.playerscreen')
-  .draggable({
-    axis: 'x',
-    containment: "#containment-wrapperDown",
-    scroll: true,
-    scrollSensitivity: 100,
-    scrollSpeed: 25,
-    cursor: '-moz-grabbing',
-    drag: function () {
-        var x = $('.playerscreen').position().top;
-        $("#containment-wrapperDown").css({
-            top: x
-        });
-    }
-  })
-  .inertia(true)
-  .restrict({
-      restriction: {
-        left: 0,
-        top: 0,
-        bottom: 0,
-        right: 5000,
-        elementRect: { left: 1, right: 1, top: 0, bottom: 0},
-        endOnly: false
-      }
-});
-
-function isMeepleAt(coords) {
-  console.log("Is there a meeple at: " + coords.x + "," + coords.y);
-  for (var i = 0; i < meeples.length; i++) {
-    var m = meeples[i];
-  var x = parseFloat(m.el.getAttribute('canvas-x')) || 0;
-  var y = parseFloat(m.el.getAttribute('canvas-y')) || 0;
-  console.log("... " + i + ") " + x + "+" + 60 + "," + y + "+" + 60);
-    if (coords.x >= (x - 30) &&
-        coords.y >= (y - 30) &&
-        (coords.x <= (x + 30)) &&
-        (coords.y <= (y + 30))) {
-  console.log("... yes");
-          return true;
-        }
-  }
-  console.log("... no");
-  return false;
-}
-
-// enable draggables to be dropped into this
-interact('.dropzone').dropzone({
+function connectTileToPile(tile, pile) {
+interact(tile.el).dropzone({
     // only accept elements matching this CSS selector
     accept: '.meeple',
     // Require a 75% element overlap for a drop to be possible
@@ -140,25 +137,27 @@ interact('.dropzone').dropzone({
     ondropactivate: function (event) {
         // add active dropzone feedback
         event.target.classList.add('drop-active');
-
     },
     ondragenter: function (event) {
         var draggableElement = event.relatedTarget,
             dropzoneElement = event.target;
+            
+        var meeple = draggableElement.meeple;
 
         // feedback the possibility of a drop
         dropzoneElement.classList.add('drop-target');
         draggableElement.classList.add('can-drop');
-        var dropRect = interact.getElementRect(event.target),
-            dropCenter = {
-              x: dropRect.left + dropRect.width  / 2,
-              y: dropRect.top  + dropRect.height / 2
-            };
-        while (isMeepleAt(dropCenter) && dropCenter.x < 1000) {
-          dropCenter.x += 10;
-          dropCenter.y += 10;
+        if (draggableElement.pile == pile) {
+          return;
         }
-
+        if (draggableElement.pile != null) {
+          draggableElement.pile.remove(meeple);
+          draggableElement.pile = null;
+        }
+        var dropCenter = pile.next(meeple.color);
+        draggableElement.pile = pile;
+        pile.add(meeple);
+        
         event.draggable.snap({
           anchors: [ dropCenter ]
         });
@@ -171,9 +170,14 @@ interact('.dropzone').dropzone({
         event.target.classList.remove('drop-target');
         event.relatedTarget.classList.remove('can-drop');
         event.draggable.snap(false);
+        if (draggableElement.pile != null) {
+          var meeple = draggableElement.meeple;
+          console.log('Removing meeple ' + meeple.id + ' from pile ' + pile.id);
+          pile.remove(meeple);
+          draggableElement.pile = null;
+        }
     },
     ondrop: function (event) {
-        //Dropped event
     },
     ondropdeactivate: function (event) {
         // remove active dropzone feedback
@@ -181,23 +185,169 @@ interact('.dropzone').dropzone({
         event.target.classList.remove('drop-target');
     }
 });
+}
+
+function triggerMove(target, dx, dy, animate) {
+  var x = (parseFloat(target.getAttribute('data-x')) || 0) + dx;
+  var y = (parseFloat(target.getAttribute('data-y')) || 0) + dy;
+
+  target.style.webkitTransform =
+  target.style.transform =
+      'translate(' + x + 'px, ' + y + 'px)';
+  if (animate) {
+    target.style.transition = '1s ease-in-out';
+  } else {
+    target.style.transition = null;
+  }
+
+  target.setAttribute('data-x', x);
+  target.setAttribute('data-y', y);
+};
+
+function moveToPile(meeple, pile) {
+  var oldPile = meeple.el.pile;
+  if (meeple.el.pile != null) {
+    meeple.el.pile.remove(meeple);
+    meeple.el.pile = null;
+  }
+  
+  var coords = pile.next(meeple.color);
+  pile.add(meeple);
+
+  var bb = meeple.el.getBoundingClientRect();
+  var canvasBb = svgCanvas.getBoundingClientRect();
+  
+  var dx = coords.x - bb.left + canvasBb.left;
+  var dy = coords.y - bb.top + canvasBb.top;
+  
+  triggerMove(meeple.el, dx, dy, true);
+  meeple.el.setAttribute('canvas-x', coords.x);
+  meeple.el.setAttribute('canvas-y', coords.y);
+
+  meeple.el.pile = pile;
+};
+
+interact('.draggable-meeple')
+  .draggable({
+      onmove: function (event) {
+          var target = event.target;
+          triggerMove(target, event.dx, event.dy, false);
+      },
+      onend: function (event) {
+         var rect = svgCanvas.getBoundingClientRect();
+         event.target.setAttribute('canvas-x', event.clientX - rect.left);
+         event.target.setAttribute('canvas-y', event.clientY - rect.top);
+      },
+      restrict: {
+        restriction: {
+          x: 0,
+          y: 375,
+          width: 1250,
+          height: 300,
+          elementRect: { left: 1, right: 1, top: 1, bottom: 1 }
+        }
+      }
+  })
+  .inertia(true)
+  .snap({
+    mode: 'anchor',
+    anchors: [],
+    range: Infinity,
+    elementOrigin: { x: 0.5, y: 0.5 },
+    endOnly: true});
 
 interact.maxInteractions(Infinity);
 
-new Rectangle(0, 350, 1250, 400, svgCanvas, 'homebase');
-for (var i = 0; i < 5; i++) {
-  new Rectangle(250 * i, 75, 250, 100, svgCanvas, 'tile');
-  new Rectangle(250 * i, 225, 250, 200, svgCanvas, 'tile dropzone');
-}
-new Rectangle(0, 175, 1250, 25, svgCanvas, 'screen');
-new Rectangle(0, 200, 1250, 25, svgCanvas, 'screen playerscreen');
+var opponentStash = new MultiPile('O', 0, 0, 1250, 75);
+var playerStash = new MultiPile('P', 0, 600, 1250, 75);
 
-for (var i = 3; i < 4; i++) {
-  for (var j = 0; j < 4; j++) {
-  meeples.push(new Rectangle(80, 350 + 75 * i, 60, 60, svgCanvas, 'meeple red'));
-  meeples.push(new Rectangle(330, 350 + 75 * i, 60, 60, svgCanvas, 'meeple green'));
-  meeples.push(new Rectangle(580, 350 + 75 * i, 60, 60, svgCanvas, 'meeple blue'));
-  meeples.push(new Rectangle(830, 350 + 75 * i, 60, 60, svgCanvas, 'meeple pink'));
-  meeples.push(new Rectangle(1080, 350 + 75 * i, 60, 60, svgCanvas, 'meeple yellow'));
+var opponentPiles = [];
+var playerPiles = [];
+var meeples = [];
+
+for (var i = 0; i < 5; i++) {
+  var opponentPile = new Pile('O' + i, 250 * i, 125, 250, 225);
+  opponentPiles.push(opponentPile);
+  new Rectangle(250 * i, 125, 250, 225, svgCanvas, 'tile');
+
+  var playerPile = new Pile('P' + i, 250 * i, 375, 250, 225);
+  playerPiles.push(playerPile);
+  var tile = new Rectangle(250 * i, 375, 250, 225, svgCanvas, 'tile');
+  connectTileToPile(tile, playerPile);
+}
+
+var button = new Rectangle(0, 325, 1250, 50, svgCanvas, 'screen endbutton');
+
+interact('.endbutton').on('tap', function (event) {
+  var i = 0;
+  button.setText("Calculating winner...");
+  meeples.forEach(function(meeple) {
+    if (meeple.el.pile != null &&
+        playerPiles.indexOf(meeple.el.pile) >= 0) {
+      if (i++ % 2) {
+        moveToPile(meeple, playerStash);
+      } else {
+        moveToPile(meeple, opponentStash);
+      }
+    }
+  });
+  normalizeMeeples();
+});
+
+function setPileDraggability(pile, draggable) {
+  var meeples = pile.getMeeples();
+  for (var i in meeples) {
+    setMeepleDraggability(meeples[i], draggable);
+  }
+};
+
+function setMeepleDraggability(meeple, draggable) {
+   if (draggable) {
+     meeple.el.setAttribute('class', meeple.baseClass + " draggable-meeple");
+   } else {
+     meeple.el.setAttribute('class', meeple.baseClass);
+   }
+};
+
+function normalizeMeeples() {
+  for (var i in meeples) {
+    setMeepleDraggability(meeples[i], false);
+  }
+  setPileDraggability(playerStash, true);
+  button.setText("Move up to 5 meeples to the tiles below. Tap here when done.");
+}
+
+function addMeeples(color, n, pile) {
+  for (var i = 0; i < n; i++) {
+    var cssClass = 'meeple ' + color;
+    var coords = pile.next(color);
+    var meeple = new Rectangle(coords.x, coords.y, 50, 50, svgCanvas, cssClass);
+    meeple.color = color;
+    meeple.el.meeple = meeple;
+    meeple.el.pile = pile;
+    pile.add(meeple);
+
+    meeples.push(meeple);
   }
 }
+
+function addMeeple(color, pile, draggable) {
+  addMeeples(color, 1, pile, draggable);
+}
+
+addMeeples('red', 4, opponentStash);
+addMeeples('red', 4, playerStash);
+
+addMeeples('green', 4, opponentStash);
+addMeeples('green', 4, playerStash);
+
+addMeeples('blue', 4, opponentStash);
+addMeeples('blue', 4, playerStash);
+
+addMeeples('yellow', 4, opponentStash);
+addMeeples('yellow', 4, playerStash);
+
+addMeeples('pink', 4, opponentStash);
+addMeeples('pink', 4, playerStash);
+
+normalizeMeeples();
